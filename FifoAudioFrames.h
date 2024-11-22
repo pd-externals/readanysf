@@ -14,16 +14,18 @@ extern "C" {
 
 class Fifo {
 	public:
-		Fifo(int s, const gavl_audio_format_t * format) ; 
+		Fifo(int s, gavl_audio_format_t * format) ; 
 		~Fifo();// { delete [] fifoPtr; }
-		int Append(const gavl_audio_frame_t * af);
-		int Get( gavl_audio_frame_t * af) ;  // pop an element off the fifo
+		bool Append( gavl_audio_frame_t * af);
+		bool Get( gavl_audio_frame_t * af) ;  // pop an element off the fifo
 		void Flush();
-		int FreeSpace() { return size - count;}
-		int isEmpty() { pthread_mutex_lock(&mut); bool c = (count == 0) ; pthread_mutex_unlock (&mut); return c;}
-		int isFull()  {  pthread_mutex_lock(&mut); bool c = (count == size ); pthread_mutex_unlock (&mut); return c; } 
-		gavl_audio_format_t * getFormat() { return format; };
-		float getSizePercentage() { return count / (float) size; };
+		//void Dump(char *c);
+		bool FreeSpace();
+		bool isEmpty();
+		bool isFull();
+		void setDebug( bool b); 
+		gavl_audio_format_t * getFormat();
+		float getSizePercentage();
 	private:
 		int size ;  // Number of elements on Fifo
 		int start ;

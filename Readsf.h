@@ -2,7 +2,7 @@
  * Readsf object for reading and playing multiple soundfile types
  * from disk and from the web using gmerlin_avdecode
  *
- * Copyright (C) 2003 August Black
+ * Copyright (C) 2003-9 August Black
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ extern "C" {
 class Readsf  {
 
 	public:
-		Readsf( int sr, int nchannels, int fifosizeinsamples);
+		Readsf( int sr, int nchannels, int frames_in_fifo, int samples_in_each_fifo_frame);
 		~Readsf();
 		void Open( char * filename);
 		int Decode( char * buf, unsigned int lengthinsamples);
@@ -55,73 +55,83 @@ class Readsf  {
 		bool RewindNoFlush();
 		bool PCM_seek(long bytes);
 		bool TIME_seek(double seconds);
-		int get_wanted_samplerate() { return output_audio_format.samplerate;}
-		int get_input_samplerate() { return input_audio_format.samplerate;}
-		int get_wanted_num_channels() { return output_audio_format.num_channels;}
-		int get_input_num_channels() { return input_audio_format.num_channels;}
-		int get_bytes_per_sample() { return bytes_per_sample;}
+		int get_wanted_samplerate();
+		int get_input_samplerate();
+		int get_wanted_num_channels();
+		int get_input_num_channels();
+		int get_bytes_per_sample();
 		float getLengthInSeconds(); 
+		int64_t getTimestamp();
 
-		Fifo * getFifo() { return fifo; } 
+		Fifo * getFifo(); 
 
-		bgav_t * getFile() {return  file;}
-		char * getFilename() {return  filename;}
+		bgav_t * getFile();
+		char * getFilename();
 
-		gavl_audio_frame_t * getIAF() { return iaf;}
-		gavl_audio_frame_t * getOAF() { return oaf;}
-		gavl_audio_frame_t * getTAF() { return taf;}
-		gavl_audio_converter_t *  getT2OAudioConverter(){ return t2o_audio_converter;};
-		gavl_audio_converter_t *  getI2TAudioConverter(){ return i2t_audio_converter;};
-		bgav_options_t * getOpt() {return opt; }
+		gavl_audio_frame_t * getIAF();
+		gavl_audio_frame_t * getOAF();
+		gavl_audio_frame_t * getTAF();
+		gavl_audio_converter_t *  getT2OAudioConverter();
+		gavl_audio_converter_t *  getI2TAudioConverter();
+		bgav_options_t * getOpt();
 
 		void setSpeed( float f);
-		void setSRCFactor(float f) {  src_factor = f;}
-		float getSRCFactor() { return src_factor;}
-
-		void setState(int b) { this->state = b;}
-		bool getState() { return state;}
-		bool isReady() { if (state == STATE_READY) return true; else return false;}
+		void setSRCFactor(float f);
+		float getSRCFactor();
 	
-		float getTimeInSeconds() { return timestamp / (float)input_audio_format.samplerate;};
-		float getFifoSizePercentage() { return fifo->getSizePercentage();};
+		void setOpenFail();
 
-		void isOpen( bool b) { is_open = b; } 
-		bool isOpen() { return is_open; } 
+		void setState(int b);
+		int getState();
+		bool isReady();
+	
+		float getTimeInSeconds();
+		float getFifoSizePercentage();
 
-		void doLoop( bool b) { loop = b; } 
-		bool doLoop() { return loop; } 
+		void isOpen( bool b);
+		bool isOpen(); 
 
+		void isOpening( bool b); 
+		bool isOpening(); 
 
-		void setEOF(bool b) { eof = b;}
-		bool getEOF() { return eof;}
-
-		bool doT2OConvert() { return do_t2o_convert; } 
-		void doT2OConvert(bool b) { do_t2o_convert = b; } 
-
-		bool doI2TConvert() { return do_i2t_convert; } 
-		void doI2TConvert(bool b) { do_i2t_convert = b; } 
-
+		void doLoop( bool b); 
+		bool doLoop(); 
 
 
-		int lockA() { return pthread_mutex_lock(&amut);}
-		int unlockA() { return pthread_mutex_unlock(&amut);}
+		void setEOF(bool b);
+		bool getEOF();
+
+		int getSamplesPerFrame();
+		
+		bool doT2OConvert(); 
+		void doT2OConvert(bool b); 
+
+		bool doI2TConvert(); 
+		void doI2TConvert(bool b); 
 
 
-		void Wait() { pthread_cond_wait( &cond, &condmut); }
-		void Signal() { pthread_cond_signal( &cond); }
 
-		void setFile() { if (is_open) bgav_close(file);  file = bgav_create(); }
+		int lockA();
+		int unlockA();
+
+
+		void Wait();
+		void Signal();
+
+		void setFile();
 		void setOptions();
-		void initFormat();
-		void setOpenCallback(void (*oc)(void *), void *v ) { this->open_callback = oc; this->callback_data = v;  };
-		void callOpenCallback() {	if(open_callback != NULL) this->open_callback( this->callback_data); };
+		bool initFormat();
+		void setOpenCallback(void (*oc)(void *), void *v );
+		void callOpenCallback();
 		
 		bool quit;
 
 	private:
 		void * callback_data;	
 		void (* open_callback)(void * v);
-
+	
+		int samples_per_frame;
+		int wanted_samplerate;
 		bool eof;
 		int bytes_per_sample;
 		int frames;
@@ -130,12 +140,13 @@ class Readsf  {
 		float src_factor;
 		bool do_t2o_convert;
 		bool do_i2t_convert;
-		bool is_open;
+		bool opening;  // is the thread_open thread running or not
+		bool is_open;	 // is there a file open or not
 		bool loop;
 		int samplesleft;
 		int64_t timestamp;
 
-		gavl_audio_options_t * aopt;
+		//gavl_audio_options_t * aopt;
 		bgav_t * file;
 		bgav_options_t * opt;
 
