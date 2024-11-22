@@ -12,8 +12,11 @@ shared.sources = \
 
 ldlibs = -lgmerlin_avdec -lgavl
 
-
-datafiles = readanysf~-help.pd readanysf~-meta.pd README
+datafiles = \
+        readanysf~-help.pd \
+        readanysf~-meta.pd \
+        README \
+        LICENSE.md
 
 # This Makefile is based on the Makefile from pd-lib-builder written by
 # Katja Vetter. You can get it from:
