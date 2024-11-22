@@ -99,7 +99,8 @@ Readsf::Readsf( int sr, int nchannels, int frames_in_fifo, int samples_in_each_f
 	pthread_cond_init(&cond, 0);
 	pthread_mutex_init(&condmut, 0);
 	pthread_mutex_init(&amut, 0);
-	pthread_create(&thr_fillfifo, NULL, fill_fifo, (void *)this);
+	if( pthread_create(&thr_fillfifo, NULL, fill_fifo, (void *)this) != 0 )
+		printf( "Failed to create fillfifo thread.\n");
 }
 
 Readsf::~Readsf() {
@@ -247,7 +248,7 @@ bool Readsf::Rewind() {
 float Readsf::getLengthInSeconds() {
 	gavl_time_t t;
 
-	if (file != NULL) {
+	if (file != NULL && is_open) {
 		t= bgav_get_duration ( file, 0);
 		return (float)(gavl_time_to_samples( input_audio_format.samplerate, t) / (float)input_audio_format.samplerate);	 
 	}
@@ -271,17 +272,18 @@ void Readsf::setSpeed( float f) {
 
 bool Readsf::RewindNoFlush() {
 	gavl_time_t gt = gavl_samples_to_time( (int)input_audio_format.samplerate, 0 ) ;        
-	if (is_open) {
+	if (file != NULL && is_open) {
 		if (bgav_can_seek ( file) ) {
-			bgav_seek(this->file, &gt);
+			bgav_seek(file, &gt);
 			return true;
 		}
 	}
 	return false;
 }
+
 bool Readsf::PCM_seek(long samples) {
 	gavl_time_t gt = gavl_samples_to_time( (int)input_audio_format.samplerate, (int64_t) samples ) ;        
-	if (this->is_open) {
+	if (file != NULL && is_open) {
 		if (bgav_can_seek ( this->file) ) {
 			//bgav_seek_audio(x->file, 0, (int64_t) f);
 			this->lockA();
@@ -298,7 +300,7 @@ bool Readsf::PCM_seek(long samples) {
 
 bool Readsf::TIME_seek(double seconds) {
 	gavl_time_t gt = gavl_seconds_to_time(  seconds ) ;        
-	if (this->is_open) {
+	if (this->is_open && file != NULL) {
 		if (bgav_can_seek ( this->file) ) {
 			//bgav_seek_audio(x->file, 0, (int64_t) f);
 			this->lockA();
@@ -319,20 +321,20 @@ void Readsf::Open(char * fn) {
 		printf("Still opening a file what to do?\n");
 	}
 	state = STATE_STARTUP;
-	is_open = false;
 	// how can we be careful here of s_name's with commas in them
-	printf("%s\n", fn);
-
+	//printf("%s\n", fn);
 	sprintf(filename, "%s", fn);
 	fifo->Flush();
 
-	// possible leak here.
-	// what to do if we open a file while another file is still opening?
-	//if ( opening ) {
-	//	pthread_cancel( thr_open);
-	//}
-	//thread_open( (void *)this);
-	pthread_create(&thr_open, NULL, thread_open, (void *)this);
+	if ( is_open ) {
+		pthread_join( thr_open, NULL);
+		printf("joinging thread open\n");
+	}
+	
+	is_open = false;
+	
+	if ( pthread_create(&thr_open, NULL, thread_open, (void *)this) != 0 )
+		printf( "Failed to create thr_open thread.\n");
 }
 
 
@@ -342,15 +344,16 @@ void Readsf::setOptions() {
 	//if (opt == NULL)
 	//	free (opt);
 	//opt = NULL;
-	opt = bgav_get_options(file);
-
-	bgav_options_set_connect_timeout(opt,  5000);
-	bgav_options_set_read_timeout(opt,     5000);
-	bgav_options_set_network_bandwidth(opt, 524300);
-	bgav_options_set_network_buffer_size(opt, 1024*12);
-	bgav_options_set_http_shoutcast_metadata (opt, 1);
-	// set up the reading so that we can seek sample accurately
-	// bgav_options_set_sample_accurate (rdsf->opt, 1 );
+	if (file != NULL) {
+		opt = bgav_get_options(file);
+		bgav_options_set_connect_timeout(opt,  5000);
+		bgav_options_set_read_timeout(opt,     5000);
+		bgav_options_set_network_bandwidth(opt, 524300);
+		bgav_options_set_network_buffer_size(opt, 1024*12);
+		bgav_options_set_http_shoutcast_metadata (opt, 1);
+		// set up the reading so that we can seek sample accurately
+		// bgav_options_set_sample_accurate (rdsf->opt, 1 );
+	}
 }
 
 bool Readsf::initFormat() {
@@ -433,7 +436,9 @@ void *thread_open(void *xp) {
 		printf( "Found redirector with %d urls inside, we will try to use the first one.\n", num_urls);
 		printf( "Name %d: %s\n", 1, bgav_redirector_get_name(rdsf->getFile() , 0));
 		printf("URL %d: %s\n",  1, bgav_redirector_get_url(rdsf->getFile(), 0));
-		if (!bgav_open( rdsf->getFile(),  bgav_redirector_get_url(rdsf->getFile(), 0))) {
+		sprintf(rdsf->getFilename(), "%s", bgav_redirector_get_url(rdsf->getFile(), 0) );
+		rdsf->setFile();
+		if (!bgav_open( rdsf->getFile(), rdsf->getFilename() ) ) {
 			printf("Could not open redirector\n");
 			rdsf->setOpenFail( );
 			rdsf->unlockA();
@@ -441,7 +446,6 @@ void *thread_open(void *xp) {
 			return NULL;
 		} else {
 			rdsf->isOpen(true);
-			sprintf(rdsf->getFilename(), "%s", bgav_redirector_get_url(rdsf->getFile(), 0) );
 			printf("opened redirector %s\n", rdsf->getFilename());
 		}
 	}
@@ -580,7 +584,7 @@ int Readsf::unlockA() { return pthread_mutex_unlock(&amut);}
 void Readsf::Wait() { pthread_cond_wait( &cond, &condmut); }
 void Readsf::Signal() { pthread_cond_signal( &cond); }
 
-void Readsf::setFile() { if (is_open) bgav_close(file);  file = bgav_create(); }
+void Readsf::setFile() { if (file != NULL) { bgav_close(file); } file = bgav_create(); }
 void Readsf::setOpenCallback(void (*oc)(void *), void *v ) { this->open_callback = oc; this->callback_data = v;  };
 void Readsf::callOpenCallback() {	if(open_callback != NULL) this->open_callback( this->callback_data); };
 
