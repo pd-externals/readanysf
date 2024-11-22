@@ -369,7 +369,7 @@ bool ReadMedia::quitAVThreads() {
 	return b;
 }
 
-void ReadMedia::openFile( char * fn, int vsize, int asize, int spf) {
+void ReadMedia::openFile(const char * fn, int vsize, int asize, int spf) {
 	lockState();
 	/*
 	if (  strcmp(m_filename, fn) == 0  && m_state == STATE_READY) {

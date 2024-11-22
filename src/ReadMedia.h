@@ -56,7 +56,7 @@ class ReadMedia  {
 		ReadMedia();
 		~ReadMedia();
 
-		void openFile( char * filename, int vfifosize, int afifosize, int samples_per_frame);
+		void openFile(const char * filename, int vfifosize, int afifosize, int samples_per_frame);
 
 		int decodeAudio( gavl_audio_frame_t *af);
 		int decodeVideo( gavl_video_frame_t *vf);
