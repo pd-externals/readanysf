@@ -83,7 +83,7 @@ Readsf::Readsf( int sr, int nchannels, int frames_in_fifo, int samples_in_each_f
 	taf = gavl_audio_frame_create(&tmp_audio_format);
 	oaf = gavl_audio_frame_create(&output_audio_format);
 
-	printf("creating fifo with %d frames of size %d = %d samples\n", frames_in_fifo, samples_in_each_fifo_frame, frames_in_fifo * samples_in_each_fifo_frame);	
+	//printf("creating fifo with %d frames of size %d = %d samples\n", frames_in_fifo, samples_in_each_fifo_frame, frames_in_fifo * samples_in_each_fifo_frame);	
 	fifo= new Fifo( frames_in_fifo ,  &tmp_audio_format); 
 	
 	open_callback = NULL;
@@ -249,7 +249,7 @@ float Readsf::getLengthInSeconds() {
 
 	if (file != NULL) {
 		t= bgav_get_duration ( file, 0);
-		return (float)(gavl_time_to_samples( input_audio_format.samplerate, t) / input_audio_format.samplerate);	 
+		return (float)(gavl_time_to_samples( input_audio_format.samplerate, t) / (float)input_audio_format.samplerate);	 
 	}
 	return 0.0;
 }
@@ -416,7 +416,6 @@ void *thread_open(void *xp) {
 	rdsf->setFile();
 	rdsf->setOptions();
 
-
 	if(!bgav_open(rdsf->getFile(), rdsf->getFilename())) {
 		printf( "Could not open file %s\n", rdsf->getFilename());
 		rdsf->setOpenFail();
@@ -448,6 +447,7 @@ void *thread_open(void *xp) {
 	}
 	//rdsf->num_tracks = bgav_num_tracks(rdsf->getFile());
 	//track =0;
+
 	bgav_select_track(rdsf->getFile(), 0);
 
 	num_audio_streams = bgav_num_audio_streams(rdsf->getFile(), 0);

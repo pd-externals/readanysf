@@ -47,6 +47,7 @@ typedef struct readanysf {
 	int num_frames_in_fifo;
 	int num_samples_per_frame;
 	int buffersize;
+	unsigned int tick;  // how often to send outlet info
 	bool play;
 	t_sample *buf;
 	unsigned int count;
@@ -59,8 +60,12 @@ void m_play(t_readanysf *x) {
 	if (x->rdsf->isReady() ) {	
 		x->play = true;
 	} else {
-		post("Current file is either invalid or  still starting. %d", x->rdsf->getState());
-		post("This probably means that it is a stream and it needs to buffer in from the network.");
+		if (x->rdsf->isOpening() ) {
+			post("Current file is still starting.");
+			post("This probably means that it is a stream and it needs to buffer in from the network.");
+		} else {
+			post("Current file is either invalid or an unsupported codec.");
+		}
 	}
 }
 
@@ -83,6 +88,12 @@ void m_time_seek(t_readanysf *x, float f) {
 	if (! x->rdsf->TIME_seek( (double)f) )		
 		post("can't seek on this file.");
 
+}	
+
+void m_tick(t_readanysf *x, float f) {
+	if (f >= 0.0) {
+		x->tick = (unsigned int) f ;
+	}
 }	
 
 void m_stop(t_readanysf *x) {
@@ -115,6 +126,7 @@ void m_open_callback( void * data) {
 		SETFLOAT(&lst, 0.0 );
 		outlet_anything(x->outinfo, gensym("ready"), 1, &lst);
 		outlet_float(x->outinfo, 0.0);
+		post("Invalid file or unsupported codec.");
 	}
 }
 
@@ -171,6 +183,7 @@ static void *readanysf_new(t_float f, t_float f2, t_float f3 ) {
   x->num_frames_in_fifo = nframes;
   x->num_samples_per_frame = nsamples;
   x->count = 0;
+  x->tick = 1000;
   x->buffersize =0;
   x->rdsf = NULL; 
   x->play =false; 
@@ -183,6 +196,12 @@ static void *readanysf_new(t_float f, t_float f2, t_float f3 ) {
   
   // set time to 0.0
   outlet_float(x->outinfo, 0.0);
+	if (x->rdsf == NULL) {
+		x->rdsf = new Readsf ( (int)sys_getsr(), x->num_channels, x->num_frames_in_fifo, x->num_samples_per_frame);
+		post("Created new readanysf~ with %d channels and internal buffer of %d * %d = %d", x->num_channels,
+				x->num_frames_in_fifo, x->num_samples_per_frame, x->num_frames_in_fifo *  x->num_samples_per_frame);
+	}
+	x->rdsf->setOpenCallback( m_open_callback, (void *)x); 
 
   return (void *)x;
 }
@@ -221,7 +240,7 @@ static t_int *readanysf_perform(t_int *w) {
 			x->x_outvec[i][j] = 0.0;
 		}
 	}
-	if ( x->count++ > 1000 ) {
+	if ( ++x->count > x->tick ) {
 		SETFLOAT (&lst, x->rdsf->getFifoSizePercentage() );
 		//post("cache: %f", x->rdsf->getFifoSizePercentage());
 		outlet_anything(x->outinfo, gensym("cache"), 1, &lst);
@@ -241,12 +260,6 @@ void readanysf_dsp(t_readanysf *x, t_signal **sp) {
   x->frames = sp[0]->s_n;
   tmpbufsize = x->frames * x->num_channels  * sizeof(t_sample);
 	//x->rdsf = new Readsf ( (int)sys_getsr(), x->num_channels, (x->frames + 1) * SRC_MAX );
-  if (x->rdsf == NULL) {
-		x->rdsf = new Readsf ( (int)sys_getsr(), x->num_channels, x->num_frames_in_fifo, x->num_samples_per_frame);
-		post("Created new readanysf~ with %d channels and internal buffer of %d * %d = %d", x->num_channels,
-				x->num_frames_in_fifo, x->num_samples_per_frame, x->num_frames_in_fifo *  x->num_samples_per_frame);
-	}
-	x->rdsf->setOpenCallback( m_open_callback, (void *)x); 
   // only malloc the buffer if the frame size changes.
   if(  x->buffersize < tmpbufsize ) { 
   	x->buffersize = tmpbufsize;
@@ -277,6 +290,7 @@ extern "C" void readanysf_tilde_setup(void) {
   class_addmethod(readanysf_class, (t_method)m_play, gensym("play"),  A_NULL);
   class_addmethod(readanysf_class, (t_method)m_pause, gensym("pause"),  A_NULL);
   class_addmethod(readanysf_class, (t_method)m_stop, gensym("stop"),  A_NULL);
+  class_addmethod(readanysf_class, (t_method)m_tick, gensym("tick"), A_FLOAT, A_NULL);
   class_addmethod(readanysf_class, (t_method)m_speed, gensym("speed"), A_FLOAT, A_NULL);
   class_addmethod(readanysf_class, (t_method)m_loop, gensym("loop"), A_FLOAT, A_NULL);
   class_addmethod(readanysf_class, (t_method)m_pcm_seek, gensym("pcm_seek"), A_FLOAT, A_NULL);
