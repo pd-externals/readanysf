@@ -18,6 +18,10 @@ datafiles = \
         README \
         LICENSE.md
 
+readanysf~.version := $(shell sed -n \
+    's|^\#X text [0-9][0-9]* [0-9][0-9]* VERSION \(.*\);|\1|p' \
+    readanysf~-meta.pd)
+
 # This Makefile is based on the Makefile from pd-lib-builder written by
 # Katja Vetter. You can get it from:
 # https://github.com/pure-data/pd-lib-builder
