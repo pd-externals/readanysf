@@ -95,7 +95,9 @@ ReadMedia::ReadMedia(  ) {
 	bgav_options_set_connect_timeout(m_opt,  5000);
 	bgav_options_set_read_timeout(m_opt,     5000);
 	bgav_options_set_network_bandwidth(m_opt, 524300);
+#ifdef HAVE_BGAV_OPTIONS_SET_NETWORK_BUFFER_SIZE
 	bgav_options_set_network_buffer_size(m_opt, 1024*12);
+#endif
 	bgav_options_set_http_shoutcast_metadata (m_opt, 1);
 	// set up the reading so that we can seek sample accurately
 	bgav_options_set_sample_accurate (m_opt, 1 );
@@ -953,6 +955,7 @@ void *the_thread_opener(void *xp) {
 		printf("opened %s\n", rm->getFilename());
 	}
 
+#ifdef HAVE_BGAV_IS_REDIRECTOR
 	// check to see if it is a redirector
 	if(bgav_is_redirector( rm->getFile() )) {
 		num_urls = bgav_redirector_get_num_urls( rm->getFile() );
@@ -972,6 +975,7 @@ void *the_thread_opener(void *xp) {
 			printf("opened redirector %s\n", rm->getFilename());
 		}
 	}
+#endif
 	
 	num_tracks = bgav_num_tracks(rm->getFile());
 	if ( num_tracks ) {
