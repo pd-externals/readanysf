@@ -1,6 +1,6 @@
 readanysf~, a puredata external for reading multiple file formats.
 -----------------------------------------------------------------
-© august black 2003 - 2009
+© august black 2003 - 2010
 licensed under the GNU GPL v2
 
 
@@ -31,8 +31,7 @@ you will need:
             sudo make install
 
 
-If you didn't change anything in the ./configure of gavl or gmerlin, AND your PD header files are in /usr/local/include you can just type make.   Otherwise, open the Makefile with your favorite text editor and change the first two variables to suit your system.
-
+After installing gavl and gmerlin_avdecode, you should just be able to type make.
 
 ----------------------------------------------------------------------------------------
 
@@ -40,15 +39,9 @@ Mac users:
 
 	you can install gavl/gmerlin-avdecoder either by source as above with linux or through fink.
 	
-	then, first try  "make -f Makefile.darwin"
-
+	then, do "make" and let me know if it doesn't work 
 
 	
-	If that doesn't work ...then, if you have a i386 machine with Mac OS.X 10.4 or greater, do:
-
-	export LIBRARY_PATH=/sw/lib:$LIBRARY_PATH; make -f Makefile.darwin_i386_10.4
-
-	I don't have a mac...so I can't tell what is going on there.
 
 
 
